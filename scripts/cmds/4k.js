@@ -1,52 +1,79 @@
 const axios = require("axios");
-const fs = require("fs-extra");
-const path = require("path");
-const sharp = require("sharp");
+
+const baseApiUrl = async () => {
+        const base = await axios.get("https://raw.githubusercontent.com/mahmud-aura/HINATA/main/baseApiUrl.json");
+        return base.data.mahmud;
+};
 
 module.exports = {
-  config: {
-    name: "4k",
-    version: "2.1.0",
-    author: "Arafat",
-    countDown: 5,
-    role: 0,
-    shortDescription: { en: "High Quality Image Enhancer" },
-    category: "image"
-  },
+        config: {
+                name: "4k",
+                aliases: ["hd", "enhance", "upscale"],
+                version: "2.7",
+                author: "MahMUD",
+                countDown: 10,
+                role: 0,
+                description: {
+                        en: "Enhance or restore image quality to 4K using AI",
+                        vi: "Nâng cao chất lượng hình ảnh lên 4K bằng AI"
+                },
+                category: "tools",
+                guide: {
+                        en: '   {pn} [url]: Upscale image via URL' +
+                                '\n   {pn} [reply]: Reply to an image to upscale',
+                        vi: '   {pn} [url]: Nâng cấp ảnh qua URL' +
+                                '\n   {pn} [reply]: Phản hồi ảnh để nâng cấp'
+                }
+        },
 
-  onStart: async function ({ message, event, api }) {
-    const { messageReply, messageID, threadID } = event;
-    if (!messageReply?.attachments?.[0]?.url) return message.reply("❌ Please reply to an image.");
+        langs: {
+                en: {
+                        noImage: "• Baby, please reply to an image or provide a link.",
+                        success: "✅ | 𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 𝟒𝐤 𝐢𝐦𝐚𝐠𝐞 𝐛𝐚𝐛𝐲",
+                        error: "× API error: %1. Contact MahMUD for help.\n•WhatsApp: 01836298139"
+                },
+                vi: {
+                        noImage: "• Cưng ơi, hãy phản hồi một bức ảnh hoặc gửi link.",
+                        success: "✅ | 𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮'𝐫 𝟒𝐤 𝐢𝐦𝐚𝐠𝐞 𝐛𝐚𝐛𝐲",
+                        error: "× Lỗi: %1. Liên hệ MahMUD để được hỗ trợ.\n•WhatsApp: 01836298139"
+                }
+        },
 
-    const imageUrl = messageReply.attachments[0].url;
-    const apiBase = "https://4k-v2.vercel.app"; 
+        onStart: async function ({ api, message, args, event, getLang }) {
+                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
+                if (this.config.author !== authorName) {
+                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
+                }
 
-    message.reaction("⚡", messageID);
-    const loadingMsg = await api.sendMessage("⚡ Enhancing...", threadID);
+                let imgUrl;
+                if (event.messageReply?.attachments?.[0]?.type === "photo") {
+                        imgUrl = event.messageReply.attachments[0].url;
+                } else if (args[0]) {
+                        imgUrl = args.join(" ");
+                }
 
-    try {
-      const response = await axios.get(`${apiBase}/api/enhance?url=${encodeURIComponent(imageUrl)}`);
-      const resultUrl = response.data.imageUrl;
+                if (!imgUrl) return api.sendMessage(getLang("noImage"), event.threadID, event.messageID);
 
-      if (!resultUrl) throw new Error("No URL");
+                api.setMessageReaction("😘", event.messageID, () => {}, true);
 
-      const img = await axios.get(resultUrl, { responseType: "arraybuffer" });
-      const cacheDir = path.join(__dirname, "cache");
-      if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir);
-      
-      const filePath = path.join(cacheDir, `hd_${Date.now()}.jpg`);
-      await sharp(Buffer.from(img.data)).jpeg({ quality: 100 }).toFile(filePath);
+                try {
+                        const response = await axios.get(`${await baseApiUrl()}/api/enhance?imgUrl=${encodeURIComponent(imgUrl)}`, {
+                                method: "GET",
+                                responseType: "stream",
+                                headers: { 'User-Agent': 'Mozilla/5.0' }
+                        });
 
-      api.unsendMessage(loadingMsg.messageID);
-      await message.reply({ attachment: fs.createReadStream(filePath) });
-      
-      message.reaction("✅", messageID);
-      
-      setTimeout(() => { if (fs.existsSync(filePath)) fs.unlinkSync(filePath); }, 5000);
-    } catch (err) {
-      api.unsendMessage(loadingMsg.messageID);
-      message.reply("❌ Error! Could not enhance the image.");
-      message.reaction("💔", messageID);
-    }
-  }
+                        api.setMessageReaction("🪽", event.messageID, () => {}, true);
+
+                        return api.sendMessage({
+                                body: getLang("success"),
+                                attachment: response.data
+                        }, event.threadID, event.messageID);
+
+                } catch (err) {
+                        console.error("error", err);
+                        api.setMessageReaction("❌", event.messageID, () => {}, true);
+                        return api.sendMessage(getLang("error", err.message), event.threadID, event.messageID);
+                }
+        }
 };
