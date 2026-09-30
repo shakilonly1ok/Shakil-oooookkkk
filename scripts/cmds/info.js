@@ -4,12 +4,12 @@ const axios = require("axios");
 module.exports = {
   config: {
     name: "info",
-    version: "1.0.6",
+    version: "1.1.3",
     author: "Sahariya Islam Shakil",
     countDown: 5,
     role: 0,
-    shortDescription: "Get bot and owner info with photo",
-    longDescription: "Displays information about the bot owner with system statistics and owner photo.",
+    shortDescription: "Get bot and owner info with HD photo",
+    longDescription: "Displays information about the bot owner with system statistics and HD photo.",
     category: "system",
     guide: {
       en: "{p}info"
@@ -26,7 +26,7 @@ module.exports = {
     const freeMem = (os.freemem() / (1024 * 1024 * 1024)).toFixed(2);
     const usedMem = (totalMem - freeMem).toFixed(2);
 
-    const imageUrl = "https://i.ibb.co.com/sd0RXFXM/image.jpg";
+    const imageUrl = "https://i.imgur.com/I7D2n6K.jpeg";
 
     const message = `╭━━━[ 🤖 GOATBOT INFO ]━━━╮
 │
@@ -40,7 +40,13 @@ module.exports = {
 ╰━━━━━━━━━━━━━━━━━━━━╯`;
 
     try {
-      const response = await axios.get(imageUrl, { responseType: "stream" });
+      const response = await axios.get(imageUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"
+        },
+        responseType: "stream"
+      });
+
       return api.sendMessage({
         body: message,
         attachment: response.data
