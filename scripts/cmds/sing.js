@@ -1,162 +1,97 @@
 const axios = require("axios");
-const ytSearch = require("yt-search");
+
+const baseApiUrl = async () => (await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json")).data.mahmud;
 
 module.exports = {
-  config: {
-    name: "sing",
-    version: "22.0",
-    author: "Arafat",
-    role: 0,
-    description: { en: "🎵 Premium Music Downloader" },
-    category: "audio"
-  },
+        config: {
+                name: "sing",
+                version: "5.5",
+                author: "MahMUD",
+                countDown: 10,
+                role: 0,
+                description: "better then all sing",
+                category: "music",
+                guide: {
+                        en: '   {pn} <song name>: Download audio Default v1'
+                                + '\n   {pn} vN <name>: Use version N for audio e.g., v2, v3'
+                                + '\n   {pn} -v <name>: Download video Default v1'
+                                + '\n   {pn} vN -v <name>: Use version N for video'
+                                + '\n   {pn} list: See all available dynamic versions',
+                        vi: '   {pn} <tên bài hát>: Tải âm thanh Mặc định v1'
+                                + '\n   {pn} vN <tên>: Dùng phiên bản N cho âm thanh'
+                                + '\n   {pn} -v <tên>: Tải video Mặc định v1'
+                                + '\n   {pn} vN -v <tên>: Dùng phiên bản N cho video'
+                                + '\n   {pn} list: Xem tất cả phiên bản hiện có'
+                }
+        },
+        langs: {
+                en: {
+                        noInput: "× Baby, please provide a song or video name.",
+                        success: "✅ | 𝐇𝐞𝐫𝐞'𝐬 𝐲𝐨𝐮𝐫 𝐬𝐨𝐧𝐠 𝐛𝐚𝐛𝐲\n• 𝐒𝐢𝐧𝐠 𝐕𝐞𝐫𝐬𝐢𝐨𝐧: %2\n• 𝐒𝐢𝐧𝐠 𝐓𝐲𝐩𝐞: %3\n• 𝐒𝐞𝐚𝐫𝐜𝐡: %1",
+                        listFetchErr: "Failed to fetch the version list.",
+                        error: "× API error: %1. Contact MahMUD for help.\n•WhatsApp: 01836298139"
+                },
+                vi: {
+                        noInput: "× Bé ơi, vui lòng nhập tên bài hát hoặc video.",
+                        success: "✅ | 𝐁à𝐢 ðá𝐭 𝐜ủ𝐚 𝐛é đâ𝐲\n• 𝐏𝐡𝐢ê𝐧 𝐛ả𝐧: %2\n• 𝐋𝐨ạ𝐢: %3\n• 𝔗ì𝔪 𝔨𝔦ế𝔪: %1",
+                        listFetchErr: "Không thể lấy danh sách phiên bản.",
+                        error: "× Lỗi API: %1. Liên hệ MahMUD để được giúp đỡ.\n•WhatsApp: 01836298139"
+                }
+        },
+        onStart: async function ({ api, event, args, message, getLang }) {
+                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
+                if (this.config.author !== authorName) {
+                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
+                }
 
-  onStart: async ({ api, args, event, commandName }) => {
+                const { messageID } = event;
 
-    if (!args.length)
-      return api.sendMessage("🎵 Please type a song name.", event.threadID, event.messageID);
+                try {
+                        if (args[0] === "list") {
+                                const response = await axios.get(`${await baseApiUrl()}/api/sing/list`);
+                                const data = response.data;
+                                return data ? message.reply(`• 𝐓𝐨𝐭𝐚𝐥 𝐕𝐞𝐫𝐬𝐢𝐨𝐧: ${data.total}\n\n${data.versions.join(", ")}`) : message.reply(getLang("listFetchErr"));
+                        }
 
-    const isList = args[0] === "-l";
-    const keyword = isList ? args.slice(1).join(" ") : args.join(" ");
+                        let version = "v1";
+                        if (args[0]) {
+                                const arg0 = args[0].toLowerCase();
+                                if (/^v\d+$/.test(arg0)) {
+                                        version = args.shift().toLowerCase();
+                                } else if (/^version\d+$/.test(arg0)) {
+                                        version = "v" + arg0.replace("version", "");
+                                        args.shift();
+                                } else if (/^-v\d+$/.test(arg0)) {
+                                        version = "v" + arg0.replace("-v", "");
+                                        args.shift();
+                                }
+                        }
 
-    if (!keyword)
-      return api.sendMessage("🎵 Please type a song name.", event.threadID, event.messageID);
+                        let type = "audio";
+                        if (args[0]) {
+                                if (args[0] === "-v" || args[0] === "video") {
+                                        type = "video";
+                                        args.shift();
+                                }
+                        }
 
-    try {
-      let results = [];
-      try {
-        const searchResult = await ytSearch(keyword);
-        results = searchResult.videos.slice(0, 6);
-      } catch (err) {
-        console.log("YT-SEARCH ERROR:", err.message);
-      }
+                        const search = args.join(" ");
+                        if (!search) return message.reply(getLang("noInput"));
 
-      if (!results.length)
-        return api.sendMessage("❌ No songs found.", event.threadID, event.messageID);
+                        api.setMessageReaction("⌛", messageID, () => {}, true);
 
-      if (isList) {
-        let text = "╭───────────────❍\n";
-        text += "│   🎵 𝑺𝒐𝒏𝒈 𝑳𝒊𝒔𝒕\n";
-        text += "╰───────────────❍\n\n";
+                        const response = await axios.get(`${await baseApiUrl()}/api/sing?version=${version}&search=${encodeURIComponent(search)}&type=${type}`, { responseType: "stream" });
+                        const stream = response.data;
+                        return message.reply({
+                                body: getLang("success", search, version, type),
+                                attachment: stream
+                        }, (error, info) => {
+                                api.setMessageReaction("🪽", event.messageID, () => {}, true);
+                        });
 
-        for (let i = 0; i < results.length; i++) {
-          const v = results[i];
-          text += `╭─❍\n`;
-          text += `┊  ${i + 1}. ${v.title}\n`;
-          text += `┊  ⏳ ${v.timestamp || "Unknown"}\n`;
-          text += `┊  📺 ${v.author.name}\n`;
-          text += `╰───────────────❍\n\n`;
+                } catch (error) {
+                        api.setMessageReaction("❌", messageID, () => {}, true);
+                        return message.reply(getLang("error", error.message));
+                }
         }
-
-        text += "╭───────────────❍\n";
-        text += "│   🔢 Reply with number (1–6)\n";
-        text += "╰───────────────❍";
-
-        return api.sendMessage(
-          { body: text },
-          event.threadID,
-          (err, info) => {
-            global.GoatBot.onReply.set(info.messageID, {
-              commandName,
-              messageID: info.messageID,
-              author: event.senderID,
-              results
-            });
-          },
-          event.messageID
-        );
-      }
-
-      const video = results[0];
-      const apiBase = String(global.GoatBot.config.Arafat?.api || "").trim();
-
-      if (!apiBase)
-        return api.sendMessage("❌ Error: API Base URL is empty!", event.threadID, event.messageID);
-
-      const finalURL = `${apiBase}/download/arafatadl?url=${encodeURIComponent(video.url)}`;
-
-      api.setMessageReaction("🌷", event.messageID, () => {}, true);
-
-      const res = await axios({
-        url: finalURL,
-        method: "GET",
-        responseType: "stream",
-        timeout: 0
-      });
-
-      if (res.status !== 200)
-        return api.sendMessage("❌ Download failed.", event.threadID, event.messageID);
-
-      await api.sendMessage(
-        {
-          body:
-`╭───────────────❍
-│ 🎧 𝑫𝒐𝒘𝒏𝒍𝒐𝒂𝒅 𝑺𝒖𝒄𝒄𝒆𝒔𝒔
-├───────────────❍
-│ 🎵 ${video.title}
-╰───────────────❍`,
-          attachment: res.data
-        },
-        event.threadID,
-        () => api.setMessageReaction("🎀", event.messageID, () => {}, true),
-        event.messageID
-      );
-
-    } catch (err) {
-      console.log("SING ERROR:", err.message);
-      api.sendMessage(`❌ Failed to fetch audio. Reason: ${err.message}`, event.threadID, event.messageID);
-    }
-  },
-
-  onReply: async ({ event, api, Reply }) => {
-    try {
-      const { results, author } = Reply;
-      if (event.senderID !== author) return;
-
-      const choice = parseInt(event.body);
-      if (isNaN(choice) || choice < 1 || choice > results.length)
-        return api.sendMessage("❌ Enter valid number (1–6).", event.threadID, event.messageID);
-
-      const video = results[choice - 1];
-      const apiBase = String(global.GoatBot.config.Arafat?.api || "").trim();
-
-      if (!apiBase)
-        return api.sendMessage("❌ Error: API Base URL is empty!", event.threadID, event.messageID);
-
-      const finalURL = `${apiBase}/download/arafatadl?url=${encodeURIComponent(video.url)}`;
-
-      api.setMessageReaction("🌷", event.messageID, () => {}, true);
-
-      const res = await axios({
-        url: finalURL,
-        method: "GET",
-        responseType: "stream",
-        timeout: 0
-      });
-
-      if (res.status !== 200)
-        return api.sendMessage("❌ Download failed.", event.threadID, event.messageID);
-
-      await api.unsendMessage(Reply.messageID);
-
-      await api.sendMessage(
-        {
-          body:
-`╭───────────────❍
-│ 🎧 𝑫𝒐𝒘𝒏𝒍𝒐𝒂𝒅 𝑺𝒖𝒄𝒄𝒆𝒔𝒔
-├───────────────❍
-│ 🎵 ${video.title}
-╰───────────────❍`,
-          attachment: res.data
-        },
-        event.threadID,
-        () => api.setMessageReaction("🎀", event.messageID, () => {}, true),
-        event.messageID
-      );
-
-    } catch (err) {
-      console.log("REPLY ERROR:", err.message);
-      api.sendMessage(`❌ Download failed. Reason: ${err.message}`, event.threadID, event.messageID);
-    }
-  }
 };
