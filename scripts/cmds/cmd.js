@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { HINATAcSync } = require("child_process");
+const { execSync } = require("child_process");
 const fs = require("fs-extra");
 const path = require("path");
 const cheerio = require("cheerio");
@@ -324,7 +324,7 @@ function loadScripts(folder, fileName, log, configCommands, api, threadModel, us
 								count++;
 								loading.info("PACKAGE", `Installing ${packageName} ${spinner[count % spinner.length]}`);
 							}, 80);
-							HINATAcSync(`npm install ${packageName} --save`, { stdio: "pipe" });
+							execSync(`npm install ${packageName} --save`, { stdio: "pipe" });
 							clearInterval(wating);
 							process.stderr.clearLine();
 						}
