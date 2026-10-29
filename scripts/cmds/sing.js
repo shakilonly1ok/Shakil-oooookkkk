@@ -1,6 +1,6 @@
 const axios = require("axios");
 
-const baseApiUrl = async () => (await axios.get("https://raw.githubusercontent.com/mahmudx7/HINATA/main/baseApiUrl.json")).data.mahmud;
+const baseApiUrl = async () => (await axios.get("https://raw.githubusercontent.com/aura-mahmud/HINATA/main/baseApiUrl.json")).data.mahmud;
 
 module.exports = {
         config: {
