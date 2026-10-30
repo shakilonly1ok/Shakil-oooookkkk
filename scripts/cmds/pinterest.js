@@ -1,129 +1,103 @@
 const axios = require("axios");
+const fs = require("fs-extra");
+const path = require("path");
 
-let fontMap = null;
-
-async function loadFont() {
-  if (fontMap) return fontMap;
-  const res = await axios.get(
-    "https://raw.githubusercontent.com/Arafat-Core/Arafat-Temp/refs/heads/main/font.json",
-    { timeout: 10000 }
-  );
-  fontMap = res.data;
-  return fontMap;
-}
-
-function font(text = "") {
-  if (!fontMap) return text;
-  let out = "";
-  for (const c of text) out += fontMap[c] || c;
-  return out;
-}
+const baseApiUrl = async () => {
+        const base = await axios.get("https://raw.githubusercontent.com/aura-mahmud/HINATA/main/baseApiUrl.json");
+        return base.data.mahmud;
+};
 
 module.exports = {
-  config: {
-    name: "pin",
-    aliases: ["pinterest"],
-    version: "3.0.0",
-    author: "Arafat",
-    cooldown: 5,
-    role: 0,
-    category: "image",
-    shortDescription: "Pinterest image search",
-    longDescription: "Clean pinterest image downloader"
-  },
-
-  onStart: async function ({ api, event, args, utils }) {
-    const { threadID, messageID } = event;
-
-    try {
-      await loadFont();
-      api.setMessageReaction("🎀", messageID, () => {}, true);
-
-      if (!args.length) {
-        return api.sendMessage(
-          font("Usage:\n#pin <keyword> [amount]\nExample:\n#pin naruto 10"),
-          threadID
-        );
-      }
-
-      let limit = 1;
-      let query = args.join(" ");
-      const last = parseInt(args[args.length - 1]);
-
-      if (!isNaN(last) && args.length > 1) {
-        limit = Math.min(last, 50);
-        query = args.slice(0, -1).join(" ");
-      }
-
-      const startTime = Date.now();
-
-      const loading = await api.sendMessage(
-        font(
-          `୨୧ ── ✦ Pinterest Search ✦ ── ୨୧\n\n` +
-          `🔎 Keyword : ${query}\n` +
-          `🖼️ Type    : Image\n` +
-          `📦 Total   : ${limit}\n` +
-          `⏳ Loading...`
-        ),
-        threadID
-      );
-
-      const apiURL = `https://arafat-pinterest-api.vercel.app/pinterest?search=${encodeURIComponent(
-        query
-      )}&limit=${limit}`;
-
-      const res = await axios.get(apiURL, { timeout: 15000 });
-
-      let images =
-        res.data?.data ||
-        res.data?.results ||
-        (Array.isArray(res.data) ? res.data : []);
-
-      images = images.filter(i => typeof i === "string").slice(0, limit);
-
-      if (!images.length) {
-        await api.unsendMessage(loading.messageID);
-        return api.sendMessage(
-          font(`No images found for ${query}`),
-          threadID
-        );
-      }
-
-      const attachments = [];
-      for (const url of images) {
-        try {
-          attachments.push(
-            utils?.getStreamFromURL
-              ? await utils.getStreamFromURL(url)
-              : (await axios.get(url, { responseType: "stream" })).data
-          );
-        } catch {}
-      }
-
-      const time = ((Date.now() - startTime) / 1000).toFixed(2);
-
-      await api.unsendMessage(loading.messageID);
-
-      await api.sendMessage(
-        {
-          body: font(
-            `୨୧ ── ✦ Pinterest Result ✦ ── ୨୧\n\n` +
-            `🔎 Keyword : ${query}\n` +
-            `🖼️ Type    : Image\n` +
-            `📦 Total   : ${attachments.length}\n` +
-            `⏱️ Time    : ${time}s`
-          ),
-          attachment: attachments
+        config: {
+                name: "pin",
+                aliases: ["pinterest", "pic"],
+                version: "1.7",
+                author: "MahMUD",
+                countDown: 10,
+                role: 0,
+                description: {
+                        bn: "পিন্টারেস্ট থেকে যেকোনো ছবি সার্চ করে ডাউনলোড করুন",
+                        en: "Search and download images from Pinterest",
+                        vi: "Tìm kiếm và tải xuống hình ảnh từ Pinterest"
+                },
+                category: "image gen",
+                guide: {
+                        bn: '   {pn} <নাম> - <পরিমাণ>: (যেমন: {pn} goku - 10)',
+                        en: '   {pn} <query> - <amount>: (Ex: {pn} goku - 10)',
+                        vi: '   {pn} <từ khóa> - <số lượng>: (VD: {pn} goku - 10)'
+                }
         },
-        threadID
-      );
 
-    } catch (err) {
-      console.error("Pinterest Error:", err);
-      api.sendMessage(
-        font("Server error, try again later."),
-        threadID
-      );
-    }
-  }
+        langs: {
+                bn: {
+                        noInput: "× বেবি, কী ছবি খুঁজছো? নাম ও পরিমাণ দাও! 🔍\nউদাহরণ: {pn} goku - 10",
+                        noData: "× দুঃখিত, আপনার সার্চ অনুযায়ী কোনো ছবি পাওয়া যায়নি।",
+                        success: "✅ | আপনার জন্য \"%1\" এর %2টি ছবি এখানে রয়েছে:",
+                        error: "× সমস্যা হয়েছে: %1। প্রয়োজনে Contact MahMUD।\n•WhatsApp: 01836298139"
+                },
+                en: {
+                        noInput: "× Baby, please enter a search query and amount! 🔍\nExample: {pn} goku - 10",
+                        noData: "× Sorry, no images found for your query.",
+                        success: "✅ | Here are your %2 images for \"%1\":",
+                        error: "× API error: %1. Contact MahMUD for help.\n•WhatsApp: 01836298139"
+                },
+                vi: {
+                        noInput: "× Cưng ơi, hãy nhập từ khóa và số lượng! 🔍\nVD: {pn} goku - 10",
+                        noData: "× Rất tiếc, không tìm thấy hình ảnh nào.",
+                        success: "✅ | Đây là %2 hình ảnh cho \"%1\":",
+                        error: "× Lỗi: %1. Liên hệ MahMUD để hỗ trợ.\n•WhatsApp: 01836298139"
+                }
+        },
+
+        onStart: async function ({ api, event, args, message, getLang }) {
+                const authorName = String.fromCharCode(77, 97, 104, 77, 85, 68);
+                if (this.config.author !== authorName) {
+                        return api.sendMessage("You are not authorized to change the author name.", event.threadID, event.messageID);
+                }
+
+                const queryAndLength = args.join(" ").split("-");
+                const keySearch = queryAndLength[0]?.trim();
+                const count = queryAndLength[1]?.trim();
+                const numberSearch = count ? Math.min(parseInt(count), 20) : 6;
+
+                if (!keySearch) return message.reply(getLang("noInput"));
+
+                const cacheDir = path.join(__dirname, "cache");
+                if (!fs.existsSync(cacheDir)) fs.mkdirSync(cacheDir, { recursive: true });
+
+                try {
+                        api.setMessageReaction("⏳", event.messageID, () => {}, true);
+
+                        const response = await axios.get(`${await baseApiUrl()}/api/pin/mahmud?query=${encodeURIComponent(keySearch)}&limit=${numberSearch}`);
+
+                        const data = response.data.images;
+                        if (!data || data.length === 0) {
+                                api.setMessageReaction("❌", event.messageID, () => {}, true);
+                                return message.reply(getLang("noData"));
+                        }
+
+                        const attachments = [];
+                        for (let i = 0; i < data.length; i++) {
+                                const imgRes = await axios.get(data[i], { responseType: "arraybuffer" });
+                                const imgPath = path.join(cacheDir, `pin_${Date.now()}_${i}.jpg`);
+                                await fs.outputFile(imgPath, imgRes.data);
+                                attachments.push(fs.createReadStream(imgPath));
+                        }
+
+                        await message.reply({
+                                body: getLang("success", keySearch, attachments.length),
+                                attachment: attachments
+                        }, () => {
+                                api.setMessageReaction("✅", event.messageID, () => {}, true);
+                                attachments.forEach(att => {
+                                        if (fs.existsSync(att.path)) fs.unlinkSync(att.path);
+                                });
+                        });
+
+                } catch (err) {
+                        console.error("Pinterest Error:", err);
+                        api.setMessageReaction("❌", event.messageID, () => {}, true);
+                        return message.reply(getLang("error", err.message));
+                }
+        }
 };
